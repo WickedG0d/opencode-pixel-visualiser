@@ -1,29 +1,58 @@
 {
-  "name": "psinetron-opencode-visualizer",
-  "version": "1.0.17",
-  "main": "index.ts",
+  "name": "wickedg0d-opencode-visualizer",
+  "version": "1.0.18",
+  "main": "./dist/index.js",
   "exports": {
-    "./server": "./index.ts",
-    "./tui": "./tui.ts"
+    "./server": "./dist/visualizer/ocv-server.js",
+    "./tui": "./dist/tui.js"
   },
   "description": "OpenCode session visualizer — real-time pixel-art office scene with animated agents",
   "files": [
-    "index.ts",
-    "tui.ts",
-    "visualizer/"
+    "dist/",
+    "visualizer/person*/",
+    "visualizer/textures/"
   ],
-  "keywords": ["opencode", "opencode-plugin", "visualizer", "monitor"],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "visualizer",
+    "monitor"
+  ],
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@opencode-ai/plugin": ">=1.16.0"
+    "@opencode-ai/plugin": "^1.16.0",
+    "ws": "^8.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.3",
-    "typescript": "^7.0.2"
+    "@types/bun": "^1.4.3",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.18.2",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.5.0"
   },
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./dist/visualizer/ocv-server.js",
+    "orchestrate": "node orchestrator.js",
+    "orchestrate:loop": "node orchestrator.js --continuous",
+    "vscode": "node ./scripts/open-vscode.js",
+    "prepare": "npm run build",
+    "lint": "eslint . --ext .ts",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "prepublishOnly": "npm run test && npm run lint"
+  },
+  "jest": {
+    "transform": {}
+  },
+  "author": "WickedG0d",
   "repository": {
     "type": "git",
-    "url": "https://github.com/psinetron/opencode-visualiser.git"
+    "url": "https://github.com/WickedG0d/opencode-pixel-visualiser.git"
   }
 }

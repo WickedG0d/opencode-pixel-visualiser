@@ -1,0 +1,60 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Visualizer Server",
+      "type": "shell",
+      "command": "node ./dist/visualizer/ocv-server.js",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[ocv-server\\]",
+          "endsPattern": "Listening on http"
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      }
+    },
+    {
+      "label": "Run Parallel Orchestrator (5 Agents)",
+      "type": "shell",
+      "command": "node orchestrator.cjs",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Open Visualizer in VS Code Simple Browser",
+      "type": "shell",
+      "command": "code --open-url http://localhost:5173",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent"
+      }
+    },
+    {
+      "label": "Build Visualizer (TypeScript)",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    }
+  ]
+}
+

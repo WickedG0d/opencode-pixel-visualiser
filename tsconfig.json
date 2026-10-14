@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "lib": ["es2022", "dom"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "bun"],
+    "moduleResolution": "bundler",
+    "outDir": "./dist"
+  },
+  "include": ["index.ts", "tui.ts", "visualizer/**/*.ts"]
+}

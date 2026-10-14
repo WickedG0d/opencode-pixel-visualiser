@@ -1,0 +1,56 @@
+{
+  "name": "opencode-pixel-visualizer",
+  "displayName": "OpenCode & Antigravity Pixel Visualizer",
+  "description": "Real-time pixel-art multi-agent office visualizer for VS Code",
+  "version": "1.0.0",
+  "publisher": "wickedg0d",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WickedG0d/opencode-pixel-visualiser.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "opencode-visualizer.open",
+        "title": "OpenCode Visualizer: Open Office in Editor",
+        "icon": "$(layout)"
+      },
+      {
+        "command": "opencode-visualizer.startOrchestrator",
+        "title": "OpenCode Visualizer: Run 5 Parallel Agents",
+        "icon": "$(play)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "opencode-visualizer-sidebar",
+          "title": "Pixel Visualizer",
+          "icon": "$(eye)"
+        }
+      ]
+    },
+    "views": {
+      "opencode-visualizer-sidebar": [
+        {
+          "type": "webview",
+          "id": "opencodeVisualizerView",
+          "name": "Live Office Scene"
+        }
+      ]
+    }
+  }
+}
+

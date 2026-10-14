@@ -1,4 +1,4 @@
-const VISUALIZER_URL = "http://localhost:5173"
+const VISUALIZER_URL = `http://localhost:${parseInt(process.env.OCV_SERVER_PORT || "5173", 10)}`
 
 interface ToastApi {
   show(input: { message: string; variant: "success" | "error" | "info" | "warning" }): void

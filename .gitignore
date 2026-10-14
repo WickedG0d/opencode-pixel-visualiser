@@ -2,3 +2,10 @@ node_modules
 .DS_Store
 bun.lock
 bun.lockb
+bun-windows-x64/
+bun.zip
+*.tgz
+.opencode.bak/
+.opencode/ocv-debug.log
+.opencode/plugins/
+dist/

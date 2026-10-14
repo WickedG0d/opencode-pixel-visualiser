@@ -1,9 +1,10 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { join } from "path"
-import { existsSync, readFileSync, writeFileSync, mkdirSync, appendFileSync } from "fs"
-import { startServer } from "./visualizer/ocv-server"
+import { readFileSync, writeFileSync, mkdirSync, appendFileSync } from "fs"
+import { WebSocket } from "ws"
+import { startServer } from "./visualizer/ocv-server.js"
 
-const SERVER_PORT = 5173
+const SERVER_PORT = parseInt(process.env.OCV_SERVER_PORT || "5173", 10)
 
 let logPath: string | null = null
 
@@ -21,7 +22,7 @@ function log(msg: string) {
 
 function tryStartServer(): boolean {
   try {
-    const ok = startServer()
+    const ok = startServer(SERVER_PORT)
     if (ok) {
       log(`[plugin] Server running on port ${SERVER_PORT}`)
     } else {
@@ -57,7 +58,7 @@ let ws: WebSocket | null = null
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 const instanceId = `oc-${process.pid}-${Math.random().toString(36).substring(2, 10)}`
 
-function connectToServer(skin: string): Promise<void> {
+function connectToServer(skin: string, directory?: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(`ws://localhost:${SERVER_PORT}`)
 
@@ -74,12 +75,15 @@ function connectToServer(skin: string): Promise<void> {
       }
 
       ws = socket
+      const dir = directory || process.cwd()
+      const name = dir.split(/[\\/]/).filter(Boolean).pop() || "Agent"
       socket.send(
         JSON.stringify({
           type: "register",
           instanceId,
-          cwd: process.cwd(),
+          cwd: dir,
           skin,
+          name,
         })
       )
       resolve()
@@ -97,15 +101,10 @@ function connectToServer(skin: string): Promise<void> {
       if (!reconnectTimer) {
         reconnectTimer = setTimeout(() => {
           reconnectTimer = null
-          // Leader election: the previous server may have died.
-          // Each surviving instance tries to bind the port; only one wins
-          // (the rest get EADDRINUSE and stay clients). Random jitter
-          // reduces the thundering-herd window when many instances detect
-          // the disconnect simultaneously.
           const jitter = Math.floor(Math.random() * 500)
           setTimeout(() => {
             tryStartServer()
-            connectToServer(skin).catch(() => {})
+            connectToServer(skin, directory).catch(() => {})
           }, jitter)
         }, 1000)
       }
@@ -128,7 +127,7 @@ function sendEvent(eventType: string, payload: Record<string, unknown> = {}) {
 
 // ─── Plugin export ──────────────────────────────────────────────────
 
-const VisualizerPlugin: Plugin = async ({ project, client, $, directory, worktree }) => {
+const VisualizerPlugin: Plugin = async ({ _project, _client, _$, directory, _worktree }: any) => {
   initLog(directory)
   const skin = resolveSkin(directory)
 
@@ -137,7 +136,7 @@ const VisualizerPlugin: Plugin = async ({ project, client, $, directory, worktre
   let connected = false
   for (let i = 0; i < 20; i++) {
     try {
-      await connectToServer(skin)
+      await connectToServer(skin, directory)
       connected = true
       log(`[plugin] Connected to server on attempt ${i + 1}`)
       break
@@ -170,12 +169,23 @@ const VisualizerPlugin: Plugin = async ({ project, client, $, directory, worktre
       }
     },
 
-    "tool.execute.after": async (input, _output) => {
+    "tool.execute.after": async (input: { tool: string }, _output: unknown) => {
       sendEvent("tool.execute.after", { tool: input.tool })
     },
 
-    "tool.execute.before": async (input, _output) => {
+    "tool.execute.before": async (input: { tool: string }, _output: unknown) => {
       sendEvent("tool.execute.before", { tool: input.tool })
+    },
+
+    dispose: async () => {
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer)
+        reconnectTimer = null
+      }
+      if (ws) {
+        try { ws.close() } catch {}
+        ws = null
+      }
     },
   }
 }

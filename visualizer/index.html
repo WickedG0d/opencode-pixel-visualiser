@@ -3,15 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenCode Visualizer</title>
+<title>OpenCode & Antigravity IDE Visualizer</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #1a1a2e; overflow: hidden; }
-  canvas { display: block; }
+  body {
+    background: #0d0d1a;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  #header-hud {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(22, 27, 46, 0.85);
+    border: 1px solid rgba(99, 102, 241, 0.35);
+    border-radius: 9999px;
+    padding: 6px 18px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 0 12px rgba(99, 102, 241, 0.15);
+    backdrop-filter: blur(8px);
+    z-index: 100;
+    user-select: none;
+  }
+  .hud-title {
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #a5b4fc, #818cf8, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hud-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .hud-badge.disconnected {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: currentColor;
+    box-shadow: 0 0 8px currentColor;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+  .hud-btn {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #ffffff;
+    border: none;
+    outline: none;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+  }
+  .hud-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.6);
+  }
+  .hud-btn:active {
+    transform: translateY(0);
+  }
+  #canvas-container {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+  }
 </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
+<div id="header-hud">
+  <div class="hud-title">⚡ Antigravity & OpenCode Visualizer</div>
+  <div id="status-badge" class="hud-badge disconnected">
+    <span class="pulse-dot"></span>
+    <span id="status-text">Connecting...</span>
+  </div>
+  <div id="agents-badge" class="hud-badge" style="background:rgba(99,102,241,0.15);color:#a5b4fc;border-color:rgba(99,102,241,0.3);">
+    <span id="agents-count">0 Parallel Agents</span>
+  </div>
+  <button id="orchestrate-btn" class="hud-btn" style="background:linear-gradient(135deg, #059669, #10b981);" onclick="runOrchestratorApi()">⚡ Run 5 Parallel Agents</button>
+  <button id="demo-btn" class="hud-btn" onclick="triggerParallelDemo()">▶ Test Demo</button>
+</div>
+<div id="parallel-feed" style="position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.88);border:1px solid rgba(99,102,241,0.35);border-radius:20px;padding:5px 16px;font-size:11px;color:#cbd5e1;display:flex;align-items:center;gap:12px;backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,0.5);z-index:90;user-select:none;max-width:92%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+  <span style="font-weight:700;color:#38bdf8;">⚡ PARALLEL PIPELINE:</span>
+  <span id="parallel-feed-text">Ready for multi-agent parallel execution</span>
+</div>
+<div id="canvas-container">
+  <canvas id="canvas"></canvas>
+</div>
 
 <script>
 // ============================================================
@@ -247,9 +361,47 @@ function getFreeCoffeeSpot() {
   return -1
 }
 
-function createAgent(instanceId, cwd, skin) {
+function updateHud() {
+  const badge = document.getElementById("agents-count")
+  if (badge) {
+    const workingCount = agents.filter(a => a.state === "working" || a.state === "sitting" || a.state === "walking_to_desk").length
+    badge.textContent = `${agents.length} Agent${agents.length === 1 ? '' : 's'} (${workingCount} Working Parallel)`
+  }
+  const feed = document.getElementById("parallel-feed-text")
+  if (feed) {
+    const activeTasks = agents
+      .filter(a => a.currentTask || a.state === "working")
+      .map(a => `${a.name || a.skinId}: ${a.currentTask || 'Executing parallel task'}`)
+    if (activeTasks.length > 0) {
+      feed.textContent = activeTasks.join('   ✦   ')
+    } else {
+      feed.textContent = agents.length > 0 ? "All agents ready at desks" : "Ready for multi-agent parallel execution"
+    }
+  }
+}
+
+async function runOrchestratorApi() {
+  const btn = document.getElementById("orchestrate-btn")
+  if (btn) btn.textContent = "⏳ Running..."
+  try {
+    const res = await fetch("/api/orchestrate", { method: "POST" })
+    const data = await res.json()
+    console.log("[viz] Orchestrator triggered:", data)
+  } catch (e) {
+    console.error("[viz] Orchestrator call failed:", e)
+  }
+  setTimeout(() => {
+    if (btn) btn.textContent = "⚡ Run 5 Parallel Agents"
+  }, 2500)
+}
+
+function createAgent(instanceId, cwd, skin, name) {
   const existing = agents.find(a => a.instanceId === instanceId)
-  if (existing) return existing
+  if (existing) {
+    if (name) existing.name = name
+    updateHud()
+    return existing
+  }
   if (agents.length >= 5) return null
   const id = agentIdCounter++
   const skinIds = Object.keys(SKINS)
@@ -265,6 +417,7 @@ function createAgent(instanceId, cwd, skin) {
   localStorage.setItem('viz-last-skin', skin)
   const a = {
     id, instanceId, cwd,
+    name: name || "",
     skinId: skin,
     state: "spawning",
     x: SPAWN_POINT.x, y: SPAWN_POINT.y,
@@ -700,7 +853,7 @@ function drawAll() {
     if (a.deskIndex < 0 || seenDesks.has(a.deskIndex)) continue
     seenDesks.add(a.deskIndex)
     const d = DESKS[a.deskIndex]
-    const name = (a.cwd || "").split("/").pop() || a.cwd || ""
+    const name = a.name || (a.cwd || "").split(/[\\/]/).filter(Boolean).pop() || a.instanceId || ""
     const lines = []
     let cur = ""
     for (let i = 0; i < name.length; i++) {
@@ -717,6 +870,62 @@ function drawAll() {
     for (let li = 0; li < lines.length; li++) {
       ctx.fillText(lines[li], d.deskX, d.deskY + li * LINE_H)
     }
+  }
+
+  // Floating activity bubble above each agent (showing live parallel task)
+  for (const a of agents) {
+    if (a.opacity < 0.2) continue
+    const task = a.currentTask || (a.state === "working" ? "Working in parallel..." : (a.state === "coffee" ? "Coffee break" : null))
+    if (!task) continue
+
+    const bubbleX = a.x
+    const bubbleY = a.y - 50 // above character head
+
+    const text = task.length > 28 ? task.substring(0, 26) + '..' : task
+    ctx.font = "bold 9px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    const textWidth = ctx.measureText(text).width
+    const padX = 8
+    const bW = Math.max(54, textWidth + padX * 2 + 14)
+    const bH = 18
+    const bLeft = bubbleX - bW / 2
+    const bTop = bubbleY - bH / 2
+
+    ctx.save()
+    // Background pill with blur glow
+    ctx.fillStyle = "rgba(15, 23, 42, 0.94)"
+    ctx.strokeStyle = a.state === "working" ? "#818cf8" : "rgba(148, 163, 184, 0.6)"
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    if (ctx.roundRect) {
+      ctx.roundRect(bLeft, bTop, bW, bH, 9)
+    } else {
+      ctx.rect(bLeft, bTop, bW, bH)
+    }
+    ctx.fill()
+    ctx.stroke()
+
+    // Triangle pointer down to head
+    ctx.fillStyle = "rgba(15, 23, 42, 0.94)"
+    ctx.beginPath()
+    ctx.moveTo(bubbleX - 3, bTop + bH)
+    ctx.lineTo(bubbleX + 3, bTop + bH)
+    ctx.lineTo(bubbleX, bTop + bH + 4)
+    ctx.closePath()
+    ctx.fill()
+
+    // Pulsing activity dot
+    const pulse = (Math.sin(performance.now() / 200) + 1) / 2
+    ctx.fillStyle = a.state === "working" ? `rgba(74, 222, 128, ${0.5 + pulse * 0.5})` : "#fbbf24"
+    ctx.beginPath()
+    ctx.arc(bLeft + 9, bubbleY, 3, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Text
+    ctx.fillStyle = "#f8fafc"
+    ctx.textAlign = "left"
+    ctx.textBaseline = "middle"
+    ctx.fillText(text, bLeft + 18, bubbleY)
+    ctx.restore()
   }
 }
 
@@ -739,6 +948,7 @@ function loop(time) {
 
   for (let i = agents.length - 1; i >= 0; i--) updateAgent(agents[i], dt)
   drawAll()
+  updateHud()
   requestAnimationFrame(loop)
 }
 
@@ -748,9 +958,27 @@ function loop(time) {
 let disconnectTimer = null
 const DISCONNECT_TIMEOUT = 10000
 
+function setStatus(connected, text) {
+  const badge = document.getElementById("status-badge")
+  const statusText = document.getElementById("status-text")
+  if (badge && statusText) {
+    if (connected) {
+      badge.classList.remove("disconnected")
+      statusText.textContent = text || "Live Connected"
+    } else {
+      badge.classList.add("disconnected")
+      statusText.textContent = text || "Disconnected"
+    }
+  }
+}
+
 function connect() {
-  const sock = new WebSocket(`ws://${location.host}`)
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:"
+  const host = location.host || "localhost:5173"
+  const sock = new WebSocket(`${protocol}//${host}`)
+
   sock.onopen = () => {
+    setStatus(true, "Live WebSocket")
     if (disconnectTimer) {
       clearTimeout(disconnectTimer)
       disconnectTimer = null
@@ -773,25 +1001,50 @@ function connect() {
         for (const inst of data.instances || []) {
           const existing = agents.find(a => a.instanceId === inst.instanceId)
           if (!existing) {
-            createAgent(inst.instanceId, inst.cwd, inst.skin)
+            createAgent(inst.instanceId, inst.cwd, inst.skin, inst.name)
+          } else if (inst.name) {
+            existing.name = inst.name
           }
         }
+        updateHud()
         break
       }
       case "instance.added":
-        createAgent(data.instanceId, data.cwd, data.skin)
+        createAgent(data.instanceId, data.cwd, data.skin, data.name)
+        updateHud()
         break
       case "instance.removed":
         removeAgent(data.instanceId)
+        updateHud()
         break
       case "instance.event": {
         const a = agents.find(a => a.instanceId === data.instanceId)
         if (!a) break
         const evt = data.event
         switch (evt.type) {
+          case "agent.working":
+          case "agent.work":
+          case "task.started":
+          case "invocation.start":
+            assignAgentWork(a)
+            break
+
+          case "agent.idle":
+          case "agent.coffee":
+          case "task.completed":
+          case "invocation.stop":
+            if (a.state === "working" || a.state === "error" || a.state === "sitting") {
+              a.state = "standing"
+              a.animFrame = SKINS[a.skinId].anims["sit"].frames - 1
+              a.animTimer = 0
+            } else if (a.state !== "walking_to_coffee" && a.state !== "standing" && a.state !== "exiting" && a.state !== "spawning") {
+              assignAgentCoffee(a)
+            }
+            break
+
           case "session.status": {
             const st = evt.status?.type || evt.status
-            if (st === "busy") assignAgentWork(a)
+            if (st === "busy" || st === "working") assignAgentWork(a)
             else if (st === "retry") assignAgentWork(a)
             else {
               // idle: finish work, go to coffee
@@ -839,25 +1092,30 @@ function connect() {
               a.animTimer = 0
             }
             break
-          case "tool.execute.after":
           case "tool.execute.before":
+            a.currentTool = evt.tool || "task"
+            a.currentTask = evt.description || evt.tool || "Executing task"
             if (a.state === "rest_area" || a.state === "coffee" || a.state === "walking_to_coffee" || a.state === "walking") {
               if (a.coffeeSpot >= 0) { reservedCoffeeSpots.delete(a.coffeeSpot); a.coffeeSpot = -1 }
               assignAgentWork(a)
             }
             break
+          case "tool.execute.after":
+            a.lastCompletedTask = a.currentTask
+            a.currentTask = null
+            a.currentTool = null
+            break
           case "session.diff":
             break
         }
+        updateHud()
         break
       }
     }
   }
 
   sock.onclose = () => {
-    // Start a one-shot countdown on the first disconnect. If we can't
-    // reconnect within the grace period, assume the server is gone for
-    // good (last opencode instance closed) and send everyone home.
+    setStatus(false, "Reconnecting...")
     if (!disconnectTimer) {
       disconnectTimer = setTimeout(() => {
         disconnectTimer = null
@@ -868,6 +1126,43 @@ function connect() {
     }
     setTimeout(connect, 2000)
   }
+}
+
+// ============================================================
+// PARALLEL AGENTS DEMO
+// ============================================================
+let demoActive = false
+function triggerParallelDemo() {
+  const btn = document.getElementById("demo-btn")
+  if (demoActive) {
+    demoActive = false
+    if (btn) btn.textContent = "▶ Test Parallel Working"
+    for (const a of [...agents]) {
+      removeAgent(a.instanceId)
+    }
+    return
+  }
+
+  demoActive = true
+  if (btn) btn.textContent = "⏹ Stop Parallel Demo"
+
+  const demoAgents = [
+    { id: "demo-orchestrator", name: "Orchestrator", skin: "person1" },
+    { id: "demo-frontend", name: "Frontend Dev", skin: "person2" },
+    { id: "demo-backend", name: "Backend Arch", skin: "person3" },
+    { id: "demo-devops", name: "DevOps Eng", skin: "person4" },
+  ]
+
+  demoAgents.forEach((spec, idx) => {
+    setTimeout(() => {
+      const a = createAgent(spec.id, `C:/workspace/${spec.name.toLowerCase().replace(/ /g, '-')}`, spec.skin, spec.name)
+      if (a) {
+        setTimeout(() => {
+          assignAgentWork(a)
+        }, 1200 + idx * 400)
+      }
+    }, idx * 600)
+  })
 }
 
 // ============================================================
