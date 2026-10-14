@@ -21,7 +21,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@opencode-ai/plugin": "^1.16.0",
+    "@opencode-ai/plugin": "^1.19.0",
     "ws": "^8.0.0"
   },
   "devDependencies": {
